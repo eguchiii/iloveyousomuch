@@ -34,7 +34,7 @@
     .sakura-layer{
       position: fixed;
       inset: 0;
-      pointer-events: none;   /* critical: never block clicks */
+      pointer-events: none;   /* never block clicks */
       z-index: 0;
       overflow: hidden;
     }
@@ -44,10 +44,9 @@
       will-change: transform;
       font-size: 16px;
       opacity: 0.95;
-      pointer-events: none;   /* critical for interactivity */
+      pointer-events: none;
       filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
       animation: fall linear forwards, sway ease-in-out infinite;
-      z-index: 0;
     }
     @keyframes fall{
       to{
@@ -156,18 +155,29 @@
     }
     .overlay.show{ display: grid; }
     .overlay .box{
+      position: relative;
       background: var(--white);
       color: var(--black);
       border-radius: 22px;
       padding: 34px 26px;
       width: min(680px, 92vw);
       box-shadow: var(--shadow);
+      z-index: 2; /* above celebration petals */
     }
     .overlay h2{
       margin:0;
       color: var(--accent);
       font-size: clamp(24px, 5vw, 36px);
-      white-space: normal; /* ensure wrapping and honor <br> */
+      white-space: normal; /* honor <br> */
+    }
+
+    /* Celebration layer INSIDE the overlay (so petals are visible with message) */
+    .celebration-layer{
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1; /* below the .box but above overlay backdrop */
+      overflow: hidden;
     }
 
     /* Error toast (for No click) */
@@ -206,7 +216,7 @@
 
   <main class="center">
     <section class="card" aria-live="polite">
-      <h1><span id="name">My dearest Daphne</span>, will you be my Valentine? 💘</h1>
+      <h1><span id="name">Daphne</span>, will you be my Valentine? 💘</h1>
 
       <div class="buttons" id="play-area">
         <!-- The moving NO (inside the card) -->
@@ -220,9 +230,12 @@
 
   <!-- Success dialog -->
   <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="yayTitle">
+    <!-- Celebration petals render here so they appear WITH the message -->
+    <div class="celebration-layer" id="celebrate"></div>
+
     <div class="box">
       <!-- Force two lines with <br> -->
-      <h2 id="yayTitle">Yay! <br>Inaro taka maong 💐</h2>
+      <h2 id="yayTitle">Yay! 🌷<br>Inaro takan maong 💕</h2>
     </div>
   </div>
 
@@ -244,6 +257,7 @@
     const overlay = document.getElementById('overlay');
     const toast = document.getElementById('toast');
     const sakuraLayer = document.getElementById('sakura');
+    const celebrateLayer = document.getElementById('celebrate');
 
     // ---------------------------
     // Moving NO logic (inside card)
@@ -311,16 +325,9 @@
     });
 
     // ---------------------------
-    // YES → overlay + extra blossom burst
+    // Petal helpers
     // ---------------------------
-    yesBtn.addEventListener('click', () => {
-      overlay.classList.add('show');
-      blossomBurst();              // celebratory burst
-      setTimeout(blossomBurst, 250);
-      setTimeout(blossomBurst, 700);
-    });
-
-    function createPetal(emoji, fallSeconds, swaySeconds) {
+    function createPetal(container, emoji, fallSeconds, swaySeconds) {
       const p = document.createElement('div');
       p.className = 'petal';
       p.textContent = emoji;
@@ -328,29 +335,44 @@
       p.style.fontSize = (12 + Math.random() * 20) + 'px';
       p.style.animationDuration = `${fallSeconds}s, ${swaySeconds}s`;
       p.style.transform = `rotate(${Math.random() * 360}deg)`;
-      sakuraLayer.appendChild(p);
+      container.appendChild(p);
       setTimeout(() => p.remove(), fallSeconds * 1000 + 600);
     }
 
-    function blossomBurst() {
+    // ---------------------------
+    // YES → overlay + CELEBRATION blossoms (visible with message)
+    // ---------------------------
+    yesBtn.addEventListener('click', () => {
+      overlay.classList.add('show');
+      // Run a short celebration rain for 2.5 seconds
+      startCelebrationRain(2500);
+    });
+
+    function startCelebrationRain(durationMs){
       const emojis = ['🌸','🌸','🌸','🌸','🌺','💮','🪷','🪻']; // mostly sakura
-      const count = 90;
-      for (let i = 0; i < count; i++) {
-        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-        const fallSeconds = 1.7 + Math.random() * 2.2;   // quick celebratory fall
-        const swaySeconds = 1.8 + Math.random() * 1.5;
-        createPetal(emoji, fallSeconds, swaySeconds);
+      const interval = 120; // denser rain during celebration
+      function drop(){
+        for (let i = 0; i < 8; i++) {
+          const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+          const fall = 1.8 + Math.random() * 2.0;   // quick celebratory fall
+          const sway = 1.5 + Math.random() * 1.5;
+          createPetal(celebrateLayer, emoji, fall, sway);
+        }
       }
+      const t = setInterval(drop, interval);
+      // kick off immediately
+      drop();
+      setTimeout(() => clearInterval(t), durationMs);
     }
 
     // ---------------------------
     // Continuous cherry blossoms across the whole page (30 seconds)
     // ---------------------------
-    function spawnPetal() {
+    function spawnPetal(){
       const emoji = Math.random() < 0.9 ? '🌸' : (Math.random() < 0.5 ? '💮' : '🌺');
       const fallSeconds = 6 + Math.random() * 6;       // 6–12s to fall
       const swaySeconds = 2 + Math.random() * 2;       // 2–4s per sway loop
-      createPetal(emoji, fallSeconds, swaySeconds);
+      createPetal(sakuraLayer, emoji, fallSeconds, swaySeconds);
     }
 
     // Start a gentle stream of petals for 30 seconds
