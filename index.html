@@ -30,6 +30,36 @@
       overflow:hidden;
     }
 
+    /* Sakura layer (behind everything) */
+    .sakura-layer{
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;               /* stays behind the card/buttons */
+      overflow: hidden;
+    }
+    .petal{
+      position: absolute;
+      top: -10vh;
+      will-change: transform;
+      font-size: 16px;
+      opacity: 0.95;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+      animation: fall linear forwards, sway ease-in-out infinite;
+    }
+    @keyframes fall{
+      to{
+        transform: translateY(120vh) rotate(360deg);
+        opacity: 1;
+      }
+    }
+    /* Each petal sways a little left/right while falling */
+    @keyframes sway{
+      0%   { transform: translateX(0)    }
+      50%  { transform: translateX(20px) }
+      100% { transform: translateX(0)    }
+    }
+
     /* Center layout */
     .center{
       position: absolute;
@@ -37,6 +67,7 @@
       display: grid;
       place-items: center;
       padding: 16px;
+      z-index: 1; /* above sakura */
     }
 
     /* Merlot card */
@@ -141,25 +172,7 @@
       margin:0;
       color: var(--accent);
       font-size: clamp(24px, 5vw, 36px);
-      white-space: pre-wrap;
-    }
-
-    /* Flower confetti */
-    .flower{
-      position: fixed;
-      top: -5vh;
-      font-size: 20px;
-      opacity: 0.95;
-      z-index: 6;
-      pointer-events: none;
-      animation: fall linear forwards;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
-    }
-    @keyframes fall{
-      to{
-        transform: translateY(112vh) rotate(360deg);
-        opacity: 1;
-      }
+      white-space: pre-wrap; /* supports \n if you set text via JS */
     }
 
     /* Error toast (for No click) */
@@ -188,21 +201,25 @@
     /* Accessibility: reduce motion */
     @media (prefers-reduced-motion: reduce){
       .btn-yes:hover, .btn-yes:active{ transform: none; }
-      .flower{ animation-duration: 1ms; }
+      .petal{ animation-duration: 1ms !important; }
     }
   </style>
 </head>
 <body>
+  <!-- Global cherry blossom layer -->
+  <div class="sakura-layer" id="sakura"></div>
+
   <main class="center">
     <section class="card" aria-live="polite">
       <h1><span id="name">Daphne</span>, will you be my Valentine? 💘</h1>
+      <p class="lead">There’s only one correct answer… 😇</p>
 
       <div class="buttons" id="play-area">
         <!-- The moving NO (inside the card) -->
         <button class="btn-no" id="noBtn" aria-label="No">No</button>
 
         <!-- Centered YES (rounded rectangle) -->
-        <button class="btn-yes" id="yesBtn" aria-label="Yes">YES 💗</button>
+        <button class="btn-yes" id="yesBtn" aria-label="Yes">YES</button>
       </div>
     </section>
   </main>
@@ -210,7 +227,8 @@
   <!-- Success dialog -->
   <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="yayTitle">
     <div class="box">
-      <h2 id="yayTitle">Yay!🌷<br>Inaro taka maong 🌺</h2>
+      <!-- Force 2 lines using <br> -->
+      <h2 id="yayTitle">Yay! 🌷<br>Inaro taka maong 🪷</h2>
     </div>
   </div>
 
@@ -218,9 +236,9 @@
   <div class="toast" id="toast" role="status" aria-live="assertive">Error: “No” is unavailable. Please try “Yes”. 😉</div>
 
   <script>
-    // ====== Customize here (name only, overlay text is set) ======
+    // ====== Customize here (name only) ======
     const PERSON_NAME  = "Daphne";
-    // ============================
+    // ========================================
 
     // Insert name
     document.getElementById('name').textContent = PERSON_NAME;
@@ -229,96 +247,3 @@
     const playArea = document.getElementById('play-area');
     const noBtn = document.getElementById('noBtn');
     const yesBtn = document.getElementById('yesBtn');
-    const overlay = document.getElementById('overlay');
-    const toast = document.getElementById('toast');
-
-    // Move "No" inside the card and keep it away from the YES button
-    function moveNoButton() {
-      const pad = 8;
-
-      const areaRect = playArea.getBoundingClientRect();
-      const yesRect = yesBtn.getBoundingClientRect();
-      const noRect = noBtn.getBoundingClientRect();
-
-      const bw = noRect.width;
-      const bh = noRect.height;
-
-      let x, y, tries = 0, maxTries = 60;
-
-      do {
-        // candidate position relative to playArea
-        x = Math.random() * (areaRect.width  - bw - pad * 2) + pad;
-        y = Math.random() * (areaRect.height - bh - pad * 2) + pad;
-
-        // convert candidate to viewport coords to compare with YES
-        const candLeft = areaRect.left + x;
-        const candTop  = areaRect.top  + y;
-        const candRight = candLeft + bw;
-        const candBottom = candTop + bh;
-
-        const overlapX = Math.max(0, Math.min(candRight, yesRect.right) - Math.max(candLeft, yesRect.left));
-        const overlapY = Math.max(0, Math.min(candBottom, yesRect.bottom) - Math.max(candTop, yesRect.top));
-        var overlapsYes = overlapX * overlapY > 0;
-
-        tries++;
-      } while (overlapsYes && tries < maxTries);
-
-      noBtn.style.left = x + "px";
-      noBtn.style.top = y + "px";
-    }
-
-    // Runaway behavior
-    noBtn.addEventListener('mouseover', moveNoButton);
-    noBtn.addEventListener('mousedown', moveNoButton);
-    noBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      moveNoButton();
-    }, { passive: false });
-
-    // Clicking "No" → show error toast
-    noBtn.addEventListener('click', () => {
-      showToast();
-    });
-
-    function showToast() {
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 1800);
-      if (navigator.vibrate) navigator.vibrate(40);
-    }
-
-    // Initial placement
-    setTimeout(moveNoButton, 120);
-
-    // Resize safety (e.g., rotate phone)
-    window.addEventListener('resize', () => {
-      clearTimeout(window._rsz);
-      window._rsz = setTimeout(moveNoButton, 120);
-    });
-
-    // YES → overlay + flower confetti
-    yesBtn.addEventListener('click', () => {
-      overlay.classList.add('show');
-      flowerBurst();
-      setTimeout(flowerBurst, 250);
-      setTimeout(flowerBurst, 700);
-    });
-
-    // Flower confetti (emojis)
-    function flowerBurst() {
-      const emojis = ['🌸','🌷','🌹','🌼','💐','🌺','🪷','🪻'];
-      const count = 90;
-      for (let i = 0; i < count; i++) {
-        const e = document.createElement('div');
-        e.className = 'flower';
-        e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-        e.style.left = Math.random() * 100 + 'vw';
-        e.style.fontSize = (14 + Math.random() * 24) + 'px';
-        e.style.animationDuration = (1.7 + Math.random() * 2.2) + 's';
-        e.style.transform = `rotate(${Math.random() * 360}deg)`;
-        document.body.appendChild(e);
-        setTimeout(() => e.remove(), 4200);
-      }
-    }
-  </script>
-</body>
-</html>
