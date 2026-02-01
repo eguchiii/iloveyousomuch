@@ -285,20 +285,23 @@
     });
 
     // ---------------------------
-    // YES → overlay + confetti pop
+    // YES → overlay + confetti (12 seconds)
     // ---------------------------
     yesBtn.addEventListener('click', () => {
       overlay.classList.add('show');
-      startConfetti(12000); // run confetti ~12s
+      startConfetti(12000); // run confetti for 12 seconds
     });
 
     // ---------------------------
-    // Confetti implementation (lightweight canvas)
+    // Confetti implementation (rAF-timed to ensure accurate duration)
     // ---------------------------
-    let ctx, particles = [], confettiTimer = null, rafId = null, confettiStopTimer = null;
+    let ctx, particles = [], rafId = null;
+    let spawning = false;
+    let spawnAccumulator = 0;
+    let startTime = 0;
+    let durationMsGlobal = 0;
 
     function sizeCanvas(){
-      // Match canvas to overlay box area
       const rect = overlay.getBoundingClientRect();
       confettiCanvas.width = Math.max(1, Math.floor(rect.width));
       confettiCanvas.height = Math.max(1, Math.floor(rect.height));
@@ -338,11 +341,35 @@
       ctx.restore();
     }
 
-    function update(){
+    // rAF loop:
+    // 1) spawns confetti for exactly durationMs using a 250ms cadence via an accumulator
+    // 2) updates/draws particles
+    // 3) stops cleanly once particles have fallen (extra fall window ~500ms)
+    function updateRaf(ts){
+      if (!startTime) startTime = ts;
+      const elapsed = ts - startTime;
+
       const w = confettiCanvas.width;
       const h = confettiCanvas.height;
       ctx.clearRect(0,0,w,h);
 
+      // Spawn control using an accumulator at 250ms cadence
+      if (spawning && elapsed < durationMsGlobal) {
+        const spawnInterval = 250; // ms between bursts
+        if (!updateRaf.lastTs) updateRaf.lastTs = ts;
+        const delta = ts - updateRaf.lastTs;
+        spawnAccumulator += delta;
+
+        while (spawnAccumulator >= spawnInterval) {
+          for (let i = 0; i < 45; i++) particles.push(makeParticle());
+          spawnAccumulator -= spawnInterval;
+        }
+        updateRaf.lastTs = ts;
+      } else {
+        spawning = false;
+      }
+
+      // Update/draw particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -354,7 +381,20 @@
           drawParticle(p);
         }
       }
-      rafId = requestAnimationFrame(update);
+
+      const fallWindow = 500; // allow ~0.5s for remaining particles to fall
+      const withinFallWindow = elapsed < (durationMsGlobal + fallWindow);
+      if (spawning || particles.length > 0 || withinFallWindow) {
+        rafId = requestAnimationFrame(updateRaf);
+      } else {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+        particles = [];
+        ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+        startTime = 0;
+        updateRaf.lastTs = 0;
+        spawnAccumulator = 0;
+      }
     }
 
     function startConfetti(durationMs = 12000){
@@ -362,32 +402,20 @@
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
       sizeCanvas();
+
+      // Reset state
+      if (rafId) cancelAnimationFrame(rafId);
       particles = [];
+      spawning = true;
+      startTime = 0;
+      updateRaf.lastTs = 0;
+      spawnAccumulator = 0;
+      durationMsGlobal = durationMs;
 
-      function burst() {
-        for (let i = 0; i < 45; i++) particles.push(makeParticle());
-      }
-      burst(); // initial burst
-      confettiTimer = setInterval(burst, 250);
+      // Initial burst so it feels instant
+      for (let i = 0; i < 45; i++) particles.push(makeParticle());
 
-      cancelAnimationFrame(rafId);
-      update();
-
-      clearTimeout(confettiStopTimer);
-      confettiStopTimer = setTimeout(stopConfetti, durationMs);
-    }
-
-    function stopConfetti(){
-      if (confettiTimer) clearInterval(confettiTimer);
-      confettiTimer = null;
-
-      // Let remaining particles fall for a moment
-      setTimeout(() => {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-        particles = [];
-        if (ctx) ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
-      }, 500);
+      rafId = requestAnimationFrame(updateRaf);
     }
   </script>
 </body>
