@@ -14,7 +14,7 @@
       --white: #ffffff;
       --black: #111111;
       --text-on-merlot: #fff7fb;  /* text on merlot */
-      --accent: #800020;          /* merlot for accents */
+      --accent: #800020;          /* merlot accents */
 
       /* Shadows */
       --shadow: 0 12px 40px rgba(0,0,0,0.28);
@@ -30,12 +30,12 @@
       overflow:hidden;
     }
 
-    /* Sakura layer (behind everything) */
+    /* Global cherry blossom layer (behind everything) */
     .sakura-layer{
       position: fixed;
       inset: 0;
       pointer-events: none;
-      z-index: 0;               /* stays behind the card/buttons */
+      z-index: 0;
       overflow: hidden;
     }
     .petal{
@@ -46,6 +46,7 @@
       opacity: 0.95;
       filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
       animation: fall linear forwards, sway ease-in-out infinite;
+      z-index: 0;
     }
     @keyframes fall{
       to{
@@ -53,7 +54,6 @@
         opacity: 1;
       }
     }
-    /* Each petal sways a little left/right while falling */
     @keyframes sway{
       0%   { transform: translateX(0)    }
       50%  { transform: translateX(20px) }
@@ -67,7 +67,7 @@
       display: grid;
       place-items: center;
       padding: 16px;
-      z-index: 1; /* above sakura */
+      z-index: 1; /* above petals */
     }
 
     /* Merlot card */
@@ -172,7 +172,7 @@
       margin:0;
       color: var(--accent);
       font-size: clamp(24px, 5vw, 36px);
-      white-space: pre-wrap; /* supports \n if you set text via JS */
+      white-space: normal; /* ensure wrapping and honor <br> */
     }
 
     /* Error toast (for No click) */
@@ -227,7 +227,7 @@
   <!-- Success dialog -->
   <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="yayTitle">
     <div class="box">
-      <!-- Force 2 lines using <br> -->
+      <!-- Force two lines with <br> (JS will NOT overwrite this) -->
       <h2 id="yayTitle">Yay! 🌷<br>Inaro taka maong 🪷</h2>
     </div>
   </div>
@@ -247,3 +247,59 @@
     const playArea = document.getElementById('play-area');
     const noBtn = document.getElementById('noBtn');
     const yesBtn = document.getElementById('yesBtn');
+    const overlay = document.getElementById('overlay');
+    const toast = document.getElementById('toast');
+    const sakuraLayer = document.getElementById('sakura');
+
+    // ---------------------------
+    // Moving NO logic (inside card)
+    // ---------------------------
+    function moveNoButton() {
+      const pad = 8;
+
+      const areaRect = playArea.getBoundingClientRect();
+      const yesRect = yesBtn.getBoundingClientRect();
+      const noRect = noBtn.getBoundingClientRect();
+
+      const bw = noRect.width;
+      const bh = noRect.height;
+
+      let x, y, tries = 0, maxTries = 60;
+
+      do {
+        // candidate position relative to playArea
+        x = Math.random() * (areaRect.width  - bw - pad * 2) + pad;
+        y = Math.random() * (areaRect.height - bh - pad * 2) + pad;
+
+        // convert candidate to viewport coords to compare with YES
+        const candLeft = areaRect.left + x;
+        const candTop  = areaRect.top  + y;
+        const candRight = candLeft + bw;
+        const candBottom = candTop + bh;
+
+        const overlapX = Math.max(0, Math.min(candRight, yesRect.right) - Math.max(candLeft, yesRect.left));
+        const overlapY = Math.max(0, Math.min(candBottom, yesRect.bottom) - Math.max(candTop, yesRect.top));
+        var overlapsYes = overlapX * overlapY > 0;
+
+        tries++;
+      } while (overlapsYes && tries < maxTries);
+
+      noBtn.style.left = x + "px";
+      noBtn.style.top = y + "px";
+    }
+
+    // Runaway behavior
+    noBtn.addEventListener('mouseover', moveNoButton);
+    noBtn.addEventListener('mousedown', moveNoButton);
+    noBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      moveNoButton();
+    }, { passive: false });
+
+    // Clicking "No" → show error toast
+    noBtn.addEventListener('click', () => {
+      showToast();
+    });
+
+    function showToast() {
+      toast.classList.add('show');
