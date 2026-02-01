@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>My dearest Daphne, will you be my valentine? 💘 </title>
+  <title>My dearest Daphne, will you be my valentine? 💘</title>
   <meta name="description" content="A little Valentine surprise ❤️" />
   <meta name="theme-color" content="#3f5f2f" />
   <style>
@@ -183,8 +183,8 @@
 <body>
   <main class="center">
     <section class="card" aria-live="polite">
-      <!-- Updated heading text -->
-      <h1>My dearest Daphne, will you be my valentine? 💘 </h1>
+      <!-- EXACT requested heading -->
+      <h1>My dearest Daphne, will you be my valentine? 💘</h1>
 
       <div class="buttons" id="play-area">
         <!-- The moving NO (inside the card) -->
@@ -234,6 +234,7 @@
 
       let x, y, tries = 0, maxTries = 60;
 
+      let overlapsYes;
       do {
         // candidate position relative to playArea
         x = Math.random() * (areaRect.width  - bw - pad * 2) + pad;
@@ -247,7 +248,7 @@
 
         const overlapX = Math.max(0, Math.min(candRight, yesRect.right) - Math.max(candLeft, yesRect.left));
         const overlapY = Math.max(0, Math.min(candBottom, yesRect.bottom) - Math.max(candTop, yesRect.top));
-        var overlapsYes = overlapX * overlapY > 0;
+        overlapsYes = overlapX * overlapY > 0;
 
         tries++;
       } while (overlapsYes && tries < maxTries);
@@ -266,14 +267,10 @@
 
     // Clicking "No" → show error toast
     noBtn.addEventListener('click', () => {
-      showToast();
-    });
-
-    function showToast() {
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 1800);
       if (navigator.vibrate) navigator.vibrate(40);
-    }
+    });
 
     // Initial placement
     setTimeout(moveNoButton, 120);
@@ -281,9 +278,10 @@
     // Resize safety (e.g., rotate phone)
     window.addEventListener('resize', () => {
       clearTimeout(window._rsz);
-      window._rsz = setTimeout(moveNoButton, 120);
-      // also resize confetti canvas if overlay visible
-      if (overlay.classList.contains('show')) sizeCanvas();
+      window._rsz = setTimeout(() => {
+        moveNoButton();
+        if (overlay.classList.contains('show')) sizeCanvas();
+      }, 120);
     });
 
     // ---------------------------
@@ -297,13 +295,13 @@
     // ---------------------------
     // Confetti implementation (lightweight canvas)
     // ---------------------------
-    let ctx, particles = [], confettiTimer, rafId;
+    let ctx, particles = [], confettiTimer = null, rafId = null, confettiStopTimer = null;
 
     function sizeCanvas(){
       // Match canvas to overlay box area
       const rect = overlay.getBoundingClientRect();
-      confettiCanvas.width = rect.width;
-      confettiCanvas.height = rect.height;
+      confettiCanvas.width = Math.max(1, Math.floor(rect.width));
+      confettiCanvas.height = Math.max(1, Math.floor(rect.height));
       confettiCanvas.style.width = rect.width + 'px';
       confettiCanvas.style.height = rect.height + 'px';
       ctx = confettiCanvas.getContext('2d');
@@ -311,7 +309,6 @@
 
     function makeParticle(){
       const w = confettiCanvas.width;
-      const h = confettiCanvas.height;
       const colors = ['#ff4d88','#ff8fab','#ffd166','#7bdff2','#b5e48c','#cdb4db','#ffcad4','#f7aef8'];
       return {
         x: Math.random() * w,
@@ -361,10 +358,37 @@
     }
 
     function startConfetti(durationMs = 2000){
+      // Respect reduced motion
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
       sizeCanvas();
-      // create bursts repeatedly during the duration
+      particles = [];
+
       function burst() {
         for (let i = 0; i < 45; i++) particles.push(makeParticle());
       }
       burst(); // initial burst
       confettiTimer = setInterval(burst, 250);
+
+      cancelAnimationFrame(rafId);
+      update();
+
+      clearTimeout(confettiStopTimer);
+      confettiStopTimer = setTimeout(stopConfetti, durationMs);
+    }
+
+    function stopConfetti(){
+      if (confettiTimer) clearInterval(confettiTimer);
+      confettiTimer = null;
+
+      // Let remaining particles fall for a moment
+      setTimeout(() => {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        particles = [];
+        if (ctx) ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+      }, 500);
+    }
+  </script>
+</body>
+</html>
