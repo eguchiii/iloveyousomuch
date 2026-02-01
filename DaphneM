@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daphne, will you be my Valentine? 💘</title>
+  <meta name="description" content="A little Valentine surprise ❤️" />
+  <meta name="theme-color" content="#3f5f2f" />
+  <style>
+    :root{
+      /* Colors */
+      --moss: #3f5f2f;            /* moss background */
+      --moss-2: #4b6b3a;          /* subtle accent (optional) */
+      --merlot: #800020;          /* merlot card & accents */
+      --text-on-merlot: #fff7fb;  /* readable text on merlot */
+      --white: #ffffff;
+      --black: #111;
+
+      /* Shadows */
+      --shadow: 0 12px 40px rgba(0,0,0,0.28);
+      --soft-shadow: 0 8px 22px rgba(0,0,0,0.18);
+    }
+
+    /* Page */
+    html, body{
+      height:100%;
+      margin:0;
+    }
+    body{
+      background: var(--moss);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Color Emoji", "Apple Color Emoji", sans-serif;
+      color: var(--text-on-merlot);
+      overflow:hidden;
+    }
+
+    /* Center layout */
+    .center {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    /* Merlot card */
+    .card{
+      position: relative;
+      width: min(760px, 92vw);
+      padding: 48px 28px 96px;
+      background: var(--merlot);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    h1{
+      margin:0 0 10px;
+      font-size: clamp(28px, 5.4vw, 44px);
+      line-height:1.15;
+      color: var(--white);
+    }
+    p.lead{
+      margin:0 0 22px;
+      font-size: clamp(15px, 3.6vw, 18px);
+      color: #ffe6ee;
+      opacity:.95;
+    }
+
+    /* Buttons area (for the roaming "No") */
+    .buttons{
+      position: relative;
+      min-height: 38vh;
+      z-index: 1;
+    }
+
+    /* Tiny roaming NO button — white circle, black text */
+    .btn-no{
+      position: absolute;
+      top: 45%;
+      left: 55%;
+      width: clamp(34px, 5.4vw, 44px);
+      height: clamp(34px, 5.4vw, 44px);
+      border-radius: 50%;
+      background: var(--white);
+      color: var(--black);
+      border: 0;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      box-shadow: var(--soft-shadow);
+      user-select:none;
+      touch-action: manipulation;
+    }
+    .btn-no:active{ transform: translateY(1px); }
+
+    /* Heart-shaped YES button — fixed at bottom center */
+    .btn-heart{
+      position: fixed;
+      left: 50%;
+      bottom: max(16px, env(safe-area-inset-bottom, 16px));
+      transform: translateX(-50%);
+      width: clamp(150px, 24vw, 230px);
+      aspect-ratio: 1.1 / 1; /* keeps a good heart scale */
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,0.25));
+      z-index: 3;
+    }
+    .btn-heart svg{
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .btn-heart span{
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--merlot);
+      font-weight: 900;
+      letter-spacing: 1px;
+      font-size: clamp(16px, 2.6vw, 26px);
+      pointer-events: none; /* click goes to button */
+    }
+    .btn-heart:hover{ transform: translateX(-50%) scale(1.03); }
+    .btn-heart:active{ transform: translateX(-50%) scale(0.99); }
+
+    /* Success overlay */
+    .overlay{
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0,0,0,0.25);
+      z-index: 5;
+      padding: 20px;
+    }
+    .overlay.show{ display: grid; }
+    .overlay .box{
+      background: var(--white);
+      color: var(--black);
+      border-radius: 22px;
+      padding: 34px 26px;
+      width: min(680px, 92vw);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .overlay h2{
+      margin:0 0 8px;
+      color: var(--merlot);
+      font-size: clamp(26px, 5vw, 38px);
+    }
+    .overlay p{
+      margin:0;
+      font-size: clamp(15px, 3.6vw, 18px);
+    }
+
+    /* Flower confetti */
+    .flower{
+      position: fixed;
+      top: -5vh;
+      font-size: 20px;
+      opacity: 0.95;
+      z-index: 6;
+      pointer-events: none;
+      animation: fall linear forwards;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+    }
+    @keyframes fall{
+      to{
+        transform: translateY(112vh) rotate(360deg);
+        opacity: 1;
+      }
+    }
+
+    /* Error toast (for No click) */
+    .toast{
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #ffefef;
+      color: #8a0000;
+      border: 2px solid #ffb8b8;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      z-index: 7;
+      box-shadow: var(--soft-shadow);
+      opacity: 0;
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Accessibility: reduce motion */
+    @media (prefers-reduced-motion: reduce){
+      .btn-heart:hover, .btn-heart:active{ transform: translateX(-50%); }
+      .flower{ animation-duration: 1ms; }
+    }
+  </style>
+</head>
+<body>
+  <main class="center">
+    <section class="card" aria-live="polite">
+      <h1><span id="name">Daphne</span>, will you be my Valentine? 💘</h1>
+      <p class="lead">There’s only one correct answer… 😇</p>
+
+      <div class="buttons" id="play-area">
+        <button class="btn-no" id="noBtn" aria-label="No">No</button>
+      </div>
+    </section>
+  </main>
+
+    <!-- YES (heart) -->
+    <button class="btn-heart" id="yesBtn" aria-label="Yes">
+      <!-- Heart SVG: white fill with merlot stroke -->
+      <svg viewBox="0 0 100 90" aria-hidden="true" focusable="false">
+        <path d="M50 80
+                 C 20 55, 0 35, 20 20
+                 C 35 7, 50 15, 50 25
+                 C 50 15, 65 7, 80 20
+                 C 100 35, 80 55, 50 80 Z"
+              fill="#ffffff" stroke="#800020" stroke-width="3" />
+      </svg>
+      <span>YES</span>
+    </button>
+
+  <!-- Success dialog -->
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="yayTitle">
+    <div class="box">
+      <h2 id="yayTitle">Yay! 🌷</h2>
+      <p id="yayMsg">You just made my day. See you on February 14th? 🌹</p>
+    </div>
+  </div>
+
+  <!-- Error toast -->
+  <div class="toast" id="toast" role="status" aria-live="assertive">Error: “No” is unavailable. Please try “Yes”. 😉</div>
+
+  <script>
+    // ====== Customize here ======
+    const PERSON_NAME  = "Daphne";
+    const SUCCESS_LINE = "Yay! 🌷";
+    const MESSAGE_LINE = "You just made my day. See you on February 14th? 🌹";
+    // ============================
+
+    // Insert texts
+    document.getElementById('name').textContent = PERSON_NAME;
+    document.getElementById('yayTitle').textContent = SUCCESS_LINE;
+    document.getElementById('yayMsg').textContent = MESSAGE_LINE;
+
+    // Elements
+    const playArea = document.getElementById('play-area');
+    const noBtn = document.getElementById('noBtn');
+    const yesBtn = document.getElementById('yesBtn');
+    const overlay = document.getElementById('overlay');
+    const toast = document.getElementById('toast');
+
+    // Move "No" away from the "Yes" button and keep inside viewport
+    function moveNoButton() {
+      const pad = 10;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const yesRect = yesBtn.getBoundingClientRect();
+      const noRect = noBtn.getBoundingClientRect();
+      const bw = noRect.width;
+      const bh = noRect.height;
+
+      let x, y, tries = 0, maxTries = 40;
+
+      do {
+        x = Math.random() * (vw - bw - pad * 2) + pad;
+        y = Math.random() * (vh - bh - pad * 2) + pad;
+
+        const overlapX = Math.max(0, Math.min(x + bw, yesRect.right) - Math.max(x, yesRect.left));
+        const overlapY = Math.max(0, Math.min(y + bh, yesRect.bottom) - Math.max(y, yesRect.top));
+        var overlapsYes = overlapX * overlapY > 0;
+
+        tries++;
+      } while (overlapsYes && tries < maxTries);
+
+      noBtn.style.left = x + "px";
+      noBtn.style.top = y + "px";
+    }
+
+    // Runaway behavior
+    noBtn.addEventListener('mouseover', moveNoButton);
+    noBtn.addEventListener('mousedown', moveNoButton);
+    noBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      moveNoButton();
+    }, { passive: false });
+
+    // Clicking "No" → show error toast
+    noBtn.addEventListener('click', () => {
+      showToast();
+    });
+
+    function showToast() {
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1800);
+      if (navigator.vibrate) navigator.vibrate(40);
+    }
+
+    // Initial placement
+    setTimeout(moveNoButton, 120);
+
+    // Resize safety
+    window.addEventListener('resize', () => {
+      clearTimeout(window._rsz);
+      window._rsz = setTimeout(moveNoButton, 120);
+    });
+
+    // YES → overlay + flower confetti
+    yesBtn.addEventListener('click', () => {
+      overlay.classList.add('show');
+      flowerBurst();
+      setTimeout(flowerBurst, 250);
+      setTimeout(flowerBurst, 700);
+    });
+
+    // Flower confetti (emojis)
+    function flowerBurst() {
+      const emojis = ['🌸','🌷','🌹','🌼','💐','🌺'];
+      const count = 80;
+      for (let i = 0; i < count; i++) {
+        const e = document.createElement('div');
+        e.className = 'flower';
+        e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 100 + 'vw';
+        e.style.fontSize = (14 + Math.random() * 24) + 'px';
+        e.style.animationDuration = (1.7 + Math.random() * 2.2) + 's';
+        e.style.transform = `rotate(${Math.random() * 360}deg)`;
+        document.body.appendChild(e);
+        setTimeout(() => e.remove(), 4200);
+      }
+    }
+  </script>
+</body>
+</html>
